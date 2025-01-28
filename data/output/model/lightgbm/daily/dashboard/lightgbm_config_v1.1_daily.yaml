@@ -1,0 +1,44 @@
+model_options:
+- name: lightgbm vv1.1
+  model_path: models\lightgbm\lightgbm_model_v1.1_daily.pkl
+  data_path: data\output\model\lightgbm\daily\dashboard\lightgbm_dashboard_table_v1.1_daily.csv
+  expected_features:
+  - Wegzüge
+  - Zuzüge
+  - Geburte
+  - Todesfälle
+  - RainDur_min
+  - StrGlo_W/m2
+  - T_C
+  - T_max_h1_C
+  - p_hPa
+  - is_saturday
+  - is_sunday
+  - month
+  - year
+  - weekday
+  - day_of_year
+  - week_of_year
+  - sin_day_of_year
+  - cos_day_of_year
+  - T_C_rolling3
+  - rained_today
+  - is_neujahr
+  - is_berchtoldstag
+  - is_tag_der_arbeit
+  - is_weihnachtstag
+  - is_stephanstag
+  - is_sportferien
+  - is_fruehlingsferien
+  - is_sommerferien
+  - is_herbstferien
+  - lag_1
+  - lag_2
+  - lag_3
+  - lag_4
+  - lag_5
+  - lag_6
+  - lag_7
+  - rolling_mean_3
+  - rolling_mean_7
+  - rolling_std_3

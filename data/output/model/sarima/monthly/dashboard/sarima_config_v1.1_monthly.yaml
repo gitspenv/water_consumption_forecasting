@@ -1,0 +1,10 @@
+model_options:
+- name: sarima v1.1
+  model_path: models\sarima\sarima_model_v1.1_monthly.pkl
+  data_path: data\processed\water\water_consumption_2015_2023_monthly_normalized_join_population_monthly.csv
+  expected_features:
+  - T_C
+  - Zuzüge
+  order: (1, 1, 0)
+  seasonal_order: (0, 1, 1, 12)
+  freq: M

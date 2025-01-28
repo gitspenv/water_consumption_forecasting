@@ -1,0 +1,36 @@
+model_options:
+- name: linear_regression v1.0
+  model_path: models\linear_regression\linear_regression_model_v1.0_daily.pkl
+  data_path: data\output\model\linear_regression\daily\dashboard\linear_regression_dashboard_table_v1.0_daily.csv
+  expected_features:
+  - const
+  - Wegzüge
+  - Zuzüge
+  - Geburte
+  - Todesfälle
+  - RainDur_min
+  - StrGlo_W/m2
+  - T_C
+  - T_max_h1_C
+  - p_hPa
+  - is_saturday
+  - is_sunday
+  - month
+  - year
+  - weekday
+  - day_of_year
+  - week_of_year
+  - sin_day_of_year
+  - cos_day_of_year
+  - T_C_rolling3
+  - rained_today
+  - lag_1
+  - lag_2
+  - lag_3
+  - lag_4
+  - lag_5
+  - lag_6
+  - lag_7
+  - rolling_mean_3
+  - rolling_mean_7
+  - rolling_std_3
