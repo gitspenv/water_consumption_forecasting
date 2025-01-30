@@ -49,7 +49,7 @@ This project aims to help Zurich’s utilities and planners better understand, p
 1. **Clone the repository**
 
 ```bash
- git clone git clone https://github.com/gitspenv/water_consumption_forecasting.git
+ git clone https://github.com/gitspenv/water_consumption_forecasting.git
  cd water_consumption_forecasting
 ```
 2. **Create a Virtual Environment (Recommended)**
