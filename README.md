@@ -25,11 +25,6 @@ This project aims to help Zurich’s utilities and planners better understand, p
 │  ├─ raw          <- Original CSV files (water, meteo, population)
 │  ├─ processed    <- Cleaned & aggregated data files
 │  └─ output       <- Model outputs (predictions, metrics, SHAP values, etc.)
-│     └─ model
-│        ├─ lightgbm
-│        ├─ linear_regression
-│        ├─ random_forest
-│        └─ sarima
 ├─ models          <- Pickled models
 ├─ src
 │  ├─ data_exploration    <- Scripts for loading & exploring data
@@ -49,7 +44,7 @@ This project aims to help Zurich’s utilities and planners better understand, p
 1. **Clone the repository**
 
 ```bash
- git clone git clone https://github.com/gitspenv/water_consumption_forecasting.git
+ git clone https://github.com/gitspenv/water_consumption_forecasting.git
  cd water_consumption_forecasting
 ```
 2. **Create a Virtual Environment (Recommended)**
