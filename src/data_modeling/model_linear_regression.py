@@ -1,222 +1,99 @@
-# imports
+### Model for testing purposes only###
+
 import sys
 import os
-import yaml
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
-import joblib  # We'll use joblib or pickle to save the OLS results
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from datetime import datetime
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-from helpers.frequency_config import AGGREGATION_CONFIG
-
+# Add the parent directory to system path for module imports
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 
+# Import data loading and exploration functions
 from data_exploration.data_loader import load_and_clean_data
+from data_exploration.data_exploration import perform_data_exploration
 
+# Define the base path
 base_path = os.getcwd()
-model_name = "linear_regression"
-model_version = "v1.0"
 
-model_output_dir = os.path.join(base_path, "data", "output", "model", model_name)
-predictions_dir = os.path.join(model_output_dir, "predictions")
-metrics_dir = os.path.join(model_output_dir, "metrics")
-viz_dir = os.path.join(model_output_dir, "visualizations")
-dashboard_dir = os.path.join(model_output_dir, "dashboard")
+# Specify the file path
+input_file_path = os.path.join(base_path, "data", "processed", "water", "water_consumption_2015_2023_normalized.csv")
 
+# Load and clean the data using the data loader
+df_cleaned = load_and_clean_data(input_file_path)
 
-# target column
-target_col = 'Wasserverbrauch'
+# Perform data exploration
+perform_data_exploration(df_cleaned)
 
-# function to display available features and get user selection
-def get_user_selected_features(available_features):
-    print("\nAvailable Features:")
-    for idx, feature in enumerate(available_features, start=1):
-        print(f"{idx}. {feature}")
-    
-    print("\nFeature Selection Options:")
-    print("1. Select features to INCLUDE")
-    print("2. Select features to EXCLUDE")
-    print("3. Keep feature selection AS IS")
-    selection_option = input("Choose an option (1, 2 or 3): ").strip()
-    
-    if selection_option == '1':
-        selected = input("Enter the feature names to INCLUDE, separated by commas: ").strip()
-        selected_features = [feat.strip() for feat in selected.split(',')]
-        valid_features = [feat for feat in selected_features if feat in available_features]
-        invalid_features = set(selected_features) - set(valid_features)
-        if invalid_features:
-            print(f"Warning: The following features are invalid and will be ignored: {invalid_features}")
-        return valid_features
-    elif selection_option == '2':
-        excluded = input("Enter the feature names to EXCLUDE, separated by commas: ").strip()
-        excluded_features = [feat.strip() for feat in excluded.split(',')]
-        valid_exclusions = set(excluded_features) & set(available_features)
-        remaining_features = [feat for feat in available_features if feat not in valid_exclusions]
-        invalid_exclusions = set(excluded_features) - set(valid_exclusions)
-        if invalid_exclusions:
-            print(f"Warning: The following features are invalid and will be ignored: {invalid_exclusions}")
-        return remaining_features
-    elif selection_option == '3':
-        print("Option 3 selected. Proceeding with all available features.")
-        return list(available_features)
-    else:
-        print("Invalid option selected. Proceeding with all available features.")
-        return list(available_features)
+# Set the index to a period
+df_cleaned.index = pd.DatetimeIndex(df_cleaned.index).to_period('D')
 
-def train_and_evaluate_for_frequency(freq):
-    # folder structure
-    freq_dir = os.path.join(model_output_dir, freq)
-    freq_predictions_dir = os.path.join(freq_dir, "predictions")
-    freq_metrics_dir = os.path.join(freq_dir, "metrics")
-    freq_viz_dir = os.path.join(freq_dir, "visualizations")
-    freq_dashboard_dir = os.path.join(freq_dir, "dashboard")
+# Combine Saturday and Sunday into one 'is_weekend' variable
+df_cleaned['is_weekend'] = df_cleaned['is_saturday'] | df_cleaned['is_sunday']  # Use bitwise OR
+df_cleaned = df_cleaned.drop(columns=['is_saturday', 'is_sunday'])  # Drop individual weekend columns
 
-    for fdir in [freq_dir, freq_predictions_dir, freq_metrics_dir, freq_viz_dir, freq_dashboard_dir]:
-        os.makedirs(fdir, exist_ok=True)
+# Define target and features
+endog = df_cleaned['Wasserverbrauch']  # Target variable (water consumption)
+exog = df_cleaned.drop(columns=['Wasserverbrauch', 'rolling_mean', 'RainDur_min', 'Geburte', 'StrGlo_W/m2'])  # Features (other variables)
 
-    freq_config = AGGREGATION_CONFIG[freq]
-    input_file = freq_config["input_file"]
-    frequency = freq_config["frequency"]
-    with_lag_features = freq_config.get("with_lag_features", True)
-    lag_periods = freq_config.get("lag_periods", 7)
+# Add new features: squared terms and interaction terms
+exog['Temp^2'] = df_cleaned['T_C'] ** 2
+exog['StrGlo^2'] = df_cleaned['StrGlo_W/m2'] ** 2
+exog['RainDur_min^2'] = df_cleaned['RainDur_min'] ** 2
+exog['RainDur_min*weekend'] = df_cleaned['RainDur_min'] * df_cleaned['is_weekend']  # Interaction term
 
-    # load data
-    df_cleaned = load_and_clean_data(
-        file_path=input_file, 
-        frequency=frequency,
-        with_lag_features=with_lag_features,
-        lag_periods=lag_periods,
-    )
-    df_cleaned.index = pd.to_datetime(df_cleaned.index)
+# Clean the exogenous variables 
+exog_clean = exog.replace([np.inf, -np.inf], np.nan)
+exog_clean = exog_clean.dropna()
 
-    if target_col not in df_cleaned.columns:
-        print(f"Error: '{target_col}' not in df.")
-        return
+# Ensure the target variable has no missing values
+endog_clean = endog[exog_clean.index]
 
-    # user picks features
-    available_features = [c for c in df_cleaned.columns if c != target_col]
-    selected_features = get_user_selected_features(available_features)
-    if not selected_features:
-        print("No features selected. Exiting.")
-        return
+# Add constant to exogenous variables for the intercept
+exog_clean = sm.add_constant(exog_clean)
 
-    # relevant df
-    df_relevant = df_cleaned[selected_features + [target_col]]
+# Split into train and test sets
+train_size = len(exog_clean) - 360
+train_exog = exog_clean.iloc[:train_size]
+test_exog = exog_clean.iloc[train_size:]
+train_endog = endog_clean.iloc[:train_size]
+test_endog = endog_clean.iloc[train_size:]
 
-    # save a "dashboard" CSV
-    dash_path = os.path.join(freq_dashboard_dir, f"{model_name}_dashboard_table_{model_version}_{freq}.csv")
-    df_relevant.to_csv(dash_path)
+# Fit the OLS (Ordinary Least Squares) model on the train set
+model = sm.OLS(train_endog, train_exog)
+results = model.fit()
 
-    # split data using freq_config
-    train_mask = freq_config["train_split"](df_relevant)
-    test_mask  = freq_config["test_split"](df_relevant)
+# Predict on the test set
+test_predictions = results.predict(test_exog)
 
-    df_train = df_relevant[train_mask]
-    df_test  = df_relevant[test_mask]
+# Print model results
+print(results.summary())
 
-    if len(df_train) < 10 or len(df_test) < 1:
-        print(f"Not enough data in train or test for freq '{freq}'.")
-        return
+# Plot actual vs predicted values for the test set
+df_cleaned.index = df_cleaned.index.to_timestamp()
 
-    # define X, y
-    X_train = df_train.drop(columns=[target_col])
-    y_train = df_train[target_col]
-    X_test  = df_test.drop(columns=[target_col])
-    y_test  = df_test[target_col]
+observed_test_values = test_endog
+predicted_test_values = test_predictions
 
-    # add intercept
-    X_train = sm.add_constant(X_train, has_constant='add')
-    X_test  = sm.add_constant(X_test, has_constant='add')
+# Convert index for plotting
+observed_test_values.index = observed_test_values.index.to_timestamp()
+predicted_test_values.index = predicted_test_values.index.to_timestamp()
 
-    # fit OLS
-    model_ols = sm.OLS(y_train, X_train)
-    results_ols = model_ols.fit()
+# Plot observed vs predicted values
+plt.figure(figsize=(10, 6))
+plt.plot(observed_test_values.index, observed_test_values, label='Observed', color='blue')
+plt.plot(predicted_test_values.index, predicted_test_values, label='Predicted', color='red', linestyle='--')
 
-    # predict
-    y_pred = results_ols.predict(X_test)
+# Add labels and title
+plt.title('Actual vs Predicted Water Consumption (Test Set)')
+plt.xlabel('Date')
+plt.ylabel('Water Consumption')
 
-    # metrics
-    mse = mean_squared_error(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    r2 = r2_score(y_test, y_pred)
+# Show the legend
+plt.legend()
 
-    print(f"\nTest MSE:  {mse:.2f}")
-    print(f"Test MAE:  {mae:.2f}")
-    print(f"Test RMSE: {rmse:.2f}")
-    print(f"Test R^2:  {r2:.2f}")
-
-    # save predictions
-    comp_df = pd.DataFrame({"Date": y_test.index, "Actual": y_test, "Predicted": y_pred})
-    comp_df.set_index("Date", inplace=True)
-    pred_path = os.path.join(freq_predictions_dir, f"{model_name}_predictions_{model_version}_{freq}.csv")
-    comp_df.to_csv(pred_path, sep=";")
-    print(f"Predictions saved to: {pred_path}")
-
-    # save metrics
-    metrics_path = os.path.join(freq_metrics_dir, f"{model_name}_metrics_{model_version}_{freq}.csv")
-    mdf = pd.DataFrame([{"MSE": mse, "MAE": mae, "RMSE": rmse, "R2": r2}])
-    mdf.to_csv(metrics_path, sep=";", index=False)
-    print(f"Metrics saved to: {metrics_path}")
-
-    # plot predictions vs. actual
-    plt.figure(figsize=(10, 6))
-    plt.plot(y_test.index, y_test, label="Observed", color="blue")
-    plt.plot(y_test.index, y_pred, label="Predicted", color="red", linestyle="--")
-    plt.title(f"OLS Observed vs Predicted ({freq} Test)")
-    plt.legend()
-    pred_plot_path = os.path.join(freq_viz_dir, f"{model_name}_predictions_plot_{model_version}_{freq}.png")
-    plt.savefig(pred_plot_path, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    # plot residuals
-    residuals = y_test - y_pred
-    plt.figure(figsize=(10, 6))
-    plt.plot(residuals.index, residuals, label="Residuals", color="purple")
-    plt.axhline(y=0, color='black', linestyle='--')
-    plt.title(f"Residuals ({freq})")
-    plt.legend()
-    resid_plot_path = os.path.join(freq_viz_dir, f"{model_name}_residuals_plot_{model_version}_{freq}.png")
-    plt.savefig(resid_plot_path, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    summary_str = results_ols.summary().as_text()
-    summary_path = os.path.join(freq_viz_dir, f"{model_name}_summary_{model_version}_{freq}.txt")
-    with open(summary_path, "w") as f:
-        f.write(summary_str)
-
-    # save the model
-    model_filename = f"{model_name}_model_{model_version}_{freq}.pkl"
-    model_save_path = os.path.join(base_path, "models", model_name, model_filename)
-    os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
-    joblib.dump(results_ols, model_save_path)
-    print(f"Model saved to {model_save_path}")
-    print("-----")
-
-    # generate YAML with final features
-    yaml_metadata = {
-        "model_options": [
-            {
-                "name": f"{model_name} {model_version}",
-                "model_path": os.path.relpath(model_save_path, base_path),
-                "data_path": os.path.relpath(dash_path, base_path),
-                "expected_features": list(X_train.columns)  # includes 'const' unless you remove it
-            }
-        ]
-    }
-
-    yaml_file_name = f"{model_name}_config_{model_version}_{freq}.yaml"
-    yaml_file_path = os.path.join(freq_dashboard_dir, yaml_file_name)
-    with open(yaml_file_path, "w", encoding="utf-8") as f:
-        yaml.dump(yaml_metadata, f, allow_unicode=True, sort_keys=False)
-    print(f"Generated YAML config at: {yaml_file_path}")
-    print("-----")
-
-# run
-selected_freq = "daily"
-if selected_freq in AGGREGATION_CONFIG:
-    train_and_evaluate_for_frequency(selected_freq)
+# Show the plot
+plt.show()

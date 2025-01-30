@@ -1,3 +1,5 @@
+### This model was developed to determine if it could outperform LightGBM or Random Forest. However, it did not achieve better results and was not included in the final output (pkl file exists) ###
+
 # imports
 import joblib
 import pandas as pd
@@ -24,10 +26,10 @@ def preprocess_data():
     base_path = os.getcwd()
 
     # set input file path
-    input_file_path = os.path.join(base_path, "water_data", "output", "water_consumption_2015_2023_normalized.csv")
+    input_file_path = os.path.join(base_path, "data", "processed", "water", "water_consumption_2015_2023_normalized.csv")
 
     # load and clean data
-    df_cleaned = load_and_clean_data(input_file_path, with_lag_features=True, lag_days=7)
+    df_cleaned = load_and_clean_data(input_file_path, with_lag_features=True, lag_periods=7)
 
     # define function to calculate days since rain
     def calculate_days_since_rain(df):

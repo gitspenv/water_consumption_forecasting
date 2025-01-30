@@ -8,10 +8,6 @@ def apply_scenario_modifications(
     weather_cols: list = ["T_C", "RainDur_min", "StrGlo_W/m2"],
     population_cols: list = ["Geburte", "Todesfälle", "Zuzüge", "Wegzüge"]
 ) -> pd.DataFrame:
-    """
-    Modify test_df with scenario changes in weather and population, 
-    plus optional rolling mean & lag adjustments.
-    """
 
     # copy data
     scenario_df = test_df.copy()

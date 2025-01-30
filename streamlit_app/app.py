@@ -97,15 +97,6 @@ with tab1:
 with tab2:
     st.header("Scenario-Based Forecast (2023)")
 
-    # short explanation of rolling means & lags for user
-    st.markdown("""
-    **What are rolling means & lags?**  
-    - *Rolling mean*: An average of water usage over past days (e.g. 3-day or 7-day) to smooth out daily fluctuations. 
-      Adjusting its factor can simulate how strongly past usage affects the model's short-term memory.  
-    - *Lag features*: Usage from previous days (lag_1 = yesterday, lag_7 = a week ago). Offsetting these can test 
-      how changes in the historical usage pattern might alter tomorrow's forecast.  
-    """)
-
     # split data for scenario
     train_data_scenario = df[df.index.year <= 2022].copy()
     test_data_scenario  = df[df.index.year == 2023].copy()
@@ -115,38 +106,35 @@ with tab2:
         st.stop()
 
     # weather sliders
-    st.markdown("#### Weather Scenario")
-    temp_offset = st.slider("Temperature Offset (°C)", -5.0, 5.0, 0.0, 0.5)
-    rain_factor = st.slider("Rain Factor", 0.0, 2.0, 1.0, 0.1)
-    rad_factor  = st.slider("Radiation Factor", 0.5, 2.0, 1.0, 0.1)
-    temp_noise  = st.slider("Daily Temp Noise (°C)", 0.0, 5.0, 0.0, 0.1)
-    rain_noise  = st.slider("Daily Rain Noise (min)", 0.0, 30.0, 0.0, 1.0)
-    rad_noise   = st.slider("Daily Radiation Noise (W/m²)", 0.0, 50.0, 0.0, 1.0)
+    with st.expander("#### Weather Scenario", expanded=False):
+        temp_offset = st.slider("Temperature Offset (°C)", -10.0, 10.0, 0.0, 0.5)
+        rain_factor = st.slider("Rain Factor", 0.0, 3.0, 1.0, 0.1)
+        rad_factor  = st.slider("Radiation Factor", 0.0, 3.0, 1.0, 0.1)
+        temp_noise  = st.slider("Daily Temp Noise (°C)", 0.0, 10.0, 0.0, 0.1)
+        rain_noise  = st.slider("Daily Rain Noise (min)", 0.0, 60.0, 0.0, 1.0)
+        rad_noise   = st.slider("Daily Radiation Noise (W/m²)", 0.0, 50.0, 0.0, 1.0)
 
-    # rolling mean & lag sliders
-    st.markdown("#### Rolling Means & Lags Scenario")
-    rolling_mean_factor = st.slider("Rolling Mean Factor", 0.5, 2.0, 1.0, 0.1)
-    lag_offset          = st.slider("Lag Offset", -10.0, 10.0, 0.0, 1.0)
+    with st.expander("#### Rolling Means & Lags Scenario", expanded=False):
+        rolling_mean_factor = st.slider("Rolling Mean Factor", 0.5, 2.0, 1.0, 0.01)
+        lag_offset          = st.slider("Lag Offset", -10.0, 10.0, 0.0, 1.0)
+
+        st.markdown("""
+        **What are rolling means & lags?**  
+        - *Rolling mean*: An average of water usage over past days (e.g. 3-day or 7-day) to smooth out daily fluctuations. 
+          Adjusting its factor can simulate how strongly past usage affects the model's short-term memory.  
+        - *Lag features*: Usage from previous days (lag_1 = yesterday, lag_7 = a week ago). Offsetting these can test 
+          how changes in the historical usage pattern might alter tomorrow's forecast.  
+        """)
 
     # population sliders
-    st.markdown("#### Population Scenario")
-    c1, c2 = st.columns(2)
-    with c1:
-        geburten_change    = st.slider("Geburte +/-", -10.0, 10.0, 0.0, 1.0)
-        todesfaelle_change = st.slider("Todesfälle +/-", -10.0, 10.0, 0.0, 1.0)
-    with c2:
-        zuzuege_change  = st.slider("Zuzüge +/-", -20.0, 20.0, 0.0, 1.0)
-        wegzuege_change = st.slider("Wegzüge +/-", -20.0, 20.0, 0.0, 1.0)
-
-    # population noise sliders
-    st.markdown("#### Noise for Population")
-    c3, c4 = st.columns(2)
-    with c3:
-        wegzuege_noise = st.slider("Wegzüge Noise", 0.0, 5.0, 0.0, 0.1)
-        zuzuege_noise  = st.slider("Zuzüge Noise", 0.0, 5.0, 0.0, 1.0)
-    with c4:
-        geburten_noise    = st.slider("Geburte Noise", 0.0, 2.0, 0.0, 0.1)
-        todesfaelle_noise = st.slider("Todesfälle Noise", 0.0, 2.0, 0.0, 0.1)
+    with st.expander("#### Population Scenario",expanded=False):
+        c1, c2 = st.columns(2)
+        with c1:
+            geburten_change    = st.slider("Geburte +/-", -2000.0, 2000.0, 0.0, 10.0)
+            todesfaelle_change = st.slider("Todesfälle +/-", -2000.0, 2000.0, 0.0, 10.0)
+        with c2:
+            zuzuege_change  = st.slider("Zuzüge +/-", -2000.0, 2000.0, 0.0, 10.0)
+            wegzuege_change = st.slider("Wegzüge +/-", -2000.0, 2000.0, 0.0, 10.0)
 
     # scenario parameters
     scenario_params = {
@@ -165,11 +153,7 @@ with tab2:
         "wegzuege_offset":    wegzuege_change,
         "zuzuege_offset":     zuzuege_change,
         "geburten_offset":    geburten_change,
-        "todesfaelle_offset": todesfaelle_change,
-        "wegzuege_noise":     wegzuege_noise,
-        "zuzuege_noise":      zuzuege_noise,
-        "geburten_noise":     geburten_noise,
-        "todesfaelle_noise":  todesfaelle_noise
+        "todesfaelle_offset": todesfaelle_change
     }
 
     # modify data based on scenario
@@ -217,7 +201,7 @@ with tab2:
 ### TAB 3 ###
 with tab3:
     st.header("Short-Horizon Multi-Step Forecast")
-    st.write("We do a short forecast so errors don't accumulate too heavily.")
+    st.write("Short forecast so errors don't accumulate too heavily.")
 
     forecast_days = st.slider("Days to forecast", 1, 30, 7)
 
