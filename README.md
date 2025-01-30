@@ -9,9 +9,9 @@ This project aims to help Zurich’s utilities and planners better understand, p
 
 - **Goal**: Predict water consumption in Zurich at various time scales (daily, weekly, monthly, yearly) using models like **Linear Regression**, **Random Forest**, **LightGBM**, and **SARIMA**.
 - **Data Sources**:
-  1. **Water consumption** (2015–2023)
-  2. **Meteorological data** (temperature, rain, radiation, barometric pressure, humidity)
-  3. **Population data** (births, deaths, migrations, vacation)
+  1. **Water consumption** (2015–2023) (Source: WVZ)
+  2. **Meteorological data** (temperature, rain, radiation, barometric pressure, humidity) (Source: https://data.stadt-zuerich.ch)
+  3. **Population data** (births, deaths, migrations, vacation) (Source: https://data.stadt-zuerich.ch)
 - **Approach**:
   1. **Data Preprocessing** – Cleaning, missing-value handling, and feature engineering (e.g., lags, rolling means).  
   2. **Modeling** – Training multiple models to predict future consumption.  
